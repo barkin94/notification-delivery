@@ -221,6 +221,9 @@ func createBatch(svc service.NotificationService) sharedhandler.AppHandler {
 		if err != nil {
 			return err
 		}
+		if len(req.Notifications) == 0 {
+			return sharedhandler.NewValidationError("notifications", "must not be empty")
+		}
 		if len(req.Notifications) > 1000 {
 			return sharedhandler.NewValidationError("notifications", "max 1000 items")
 		}

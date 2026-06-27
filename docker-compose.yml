@@ -122,7 +122,7 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
-    env_file: api/.env
+    env_file: api/.env.example
     ports:
       - "8080:8080"
     depends_on:
@@ -139,7 +139,7 @@ services:
     build:
       context: .
       dockerfile: processor/Dockerfile
-    env_file: processor/.env
+    env_file: processor/.env.example
     ports:
       - "8081:8081"
     depends_on:
@@ -156,7 +156,7 @@ services:
     build:
       context: .
       dockerfile: deliveryscheduler/Dockerfile
-    env_file: deliveryscheduler/.env
+    env_file: deliveryscheduler/.env.example
     depends_on:
       migrate-deliveryscheduler:
         condition: service_completed_successfully
