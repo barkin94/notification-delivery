@@ -9,7 +9,7 @@ replace (
 
 require (
 	github.com/barkin94/notification-system/api/public v0.5.0
-	github.com/barkin94/notification-system/shared v0.6.0
+	github.com/barkin94/notification-system/shared v0.7.0
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
