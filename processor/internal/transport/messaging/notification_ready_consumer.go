@@ -2,27 +2,39 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"sync"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
 	"github.com/barkin94/insider-notification/processor/internal/delivery"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	"github.com/barkin94/insider-notification/shared/events"
 	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
-func (c *NotificationReadyConsumer) processOne(msg natsmsg.Result[apipub.NotificationReadyEvent]) {
+func (c *NotificationReadyConsumer) processOne(msg natsmsg.Result[cloudevents.Event]) {
 	defer msg.EndSpan()
-	err := c.pipeline.Run(msg.Ctx, msg.Event, msg.AttemptNumber)
+
+	// Extract notification ready data from CloudEvent
+	var readyData events.NotificationReadyData
+	if err := json.Unmarshal(msg.Event.Data(), &readyData); err != nil {
+		slog.ErrorContext(msg.Ctx, "notification ready consumer: parse CloudEvent data", "error", err)
+		sharedotel.RecordError(msg.Ctx, err)
+		_ = msg.Msg.Nak()
+		return
+	}
+
+	err := c.pipeline.Run(msg.Ctx, &readyData, msg.AttemptNumber)
 	var retryAfter delivery.ErrRetryAfter
 	switch {
 	case errors.As(err, &retryAfter):
 		_ = msg.Msg.NakWithDelay(retryAfter.Delay)
-		slog.InfoContext(msg.Ctx, "message nacked with delay", "id", msg.Event.NotificationID, "delay", retryAfter.Delay)
+		slog.InfoContext(msg.Ctx, "message nacked with delay", "id", readyData.NotificationID, "delay", retryAfter.Delay)
 	case err != nil:
 		_ = msg.Msg.Nak()
-		slog.ErrorContext(msg.Ctx, "pipeline error", "id", msg.Event.NotificationID, "error", err)
+		slog.ErrorContext(msg.Ctx, "pipeline error", "id", readyData.NotificationID, "error", err)
 		sharedotel.RecordError(msg.Ctx, err)
 	default:
 		_ = msg.Msg.Ack()
@@ -34,7 +46,7 @@ func (c *NotificationReadyConsumer) processOne(msg natsmsg.Result[apipub.Notific
 // NakWithDelay so NATS re-delivers the same message after the backoff period,
 // eliminating the need for a separate retry scheduler service.
 type NotificationReadyConsumer struct {
-	router      *delivery.PriorityRouter[natsmsg.Result[apipub.NotificationReadyEvent]]
+	router      *delivery.PriorityRouter[natsmsg.Result[cloudevents.Event]]
 	pipeline    *delivery.NotificationDeliveryPipeline
 	concurrency int
 }
@@ -52,17 +64,17 @@ func NewNotificationReadyConsumer(
 	concurrency int,
 	maxDeliver int,
 ) *NotificationReadyConsumer {
-	highMsgs := natsmsg.Subscribe[apipub.NotificationReadyEvent](
-		ctx, h, string(apipub.TopicHigh), "processor-high", serviceName, maxDeliver,
+	highMsgs := natsmsg.Subscribe[cloudevents.Event](
+		ctx, h, events.SubjectHigh, events.ConsumerGroupHigh, serviceName, maxDeliver,
 	)
-	normalMsgs := natsmsg.Subscribe[apipub.NotificationReadyEvent](
-		ctx, h, string(apipub.TopicNormal), "processor-normal", serviceName, maxDeliver,
+	normalMsgs := natsmsg.Subscribe[cloudevents.Event](
+		ctx, h, events.SubjectNormal, events.ConsumerGroupNormal, serviceName, maxDeliver,
 	)
-	lowMsgs := natsmsg.Subscribe[apipub.NotificationReadyEvent](
-		ctx, h, string(apipub.TopicLow), "processor-low", serviceName, maxDeliver,
+	lowMsgs := natsmsg.Subscribe[cloudevents.Event](
+		ctx, h, events.SubjectLow, events.ConsumerGroupLow, serviceName, maxDeliver,
 	)
 
-	router := delivery.NewPriorityRouter([]delivery.WeightedSource[natsmsg.Result[apipub.NotificationReadyEvent]]{
+	router := delivery.NewPriorityRouter([]delivery.WeightedSource[natsmsg.Result[cloudevents.Event]]{
 		{Ch: highMsgs, Weight: highWeight},
 		{Ch: normalMsgs, Weight: normalWeight},
 		{Ch: lowMsgs, Weight: lowWeight},

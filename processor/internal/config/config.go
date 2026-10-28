@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	shared.Base
+	DatabaseURL               string
 	NATSAddr                  string
 	RedisAddr                 string
 	WorkerConcurrency         int
@@ -44,6 +45,11 @@ func Load() *Config {
 	v.SetDefault("PUSH_RATE_PER_SECOND", 500)
 	v.SetDefault("PUSH_BURST", 600)
 
+	dbURL := v.GetString("DATABASE_URL")
+	if dbURL == "" {
+		slog.Error("missing required env var", "var", "DATABASE_URL")
+		os.Exit(1)
+	}
 	natsAddr := v.GetString("NATS_ADDR")
 	if natsAddr == "" {
 		slog.Error("missing required env var", "var", "NATS_ADDR")
@@ -57,6 +63,7 @@ func Load() *Config {
 
 	return &Config{
 		Base:                      shared.LoadBase(v),
+		DatabaseURL:               dbURL,
 		NATSAddr:                  natsAddr,
 		RedisAddr:                 redisAddr,
 		WorkerConcurrency:         v.GetInt("WORKER_CONCURRENCY"),

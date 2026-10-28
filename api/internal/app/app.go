@@ -12,11 +12,14 @@ import (
 	"github.com/barkin94/insider-notification/api/internal/db/postgres"
 	"github.com/barkin94/insider-notification/api/internal/service"
 	handler "github.com/barkin94/insider-notification/api/internal/transport/http"
-	"github.com/barkin94/insider-notification/api/internal/transport/messaging"
+	apimessaging "github.com/barkin94/insider-notification/api/internal/transport/messaging"
 	dspub "github.com/barkin94/insider-notification/deliveryscheduler/public"
 	processorpub "github.com/barkin94/insider-notification/processor/public"
 	sharedbun "github.com/barkin94/insider-notification/shared/bun"
+	sharedmessaging "github.com/barkin94/insider-notification/shared/messaging"
+	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
 	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 const notificationStream = "NOTIFICATIONS"
@@ -24,8 +27,9 @@ const notificationStream = "NOTIFICATIONS"
 // App wires and runs the API service.
 type App struct {
 	server                 *http.Server
-	deliveryResultConsumer *messaging.DeliveryResultConsumer
-	scheduledDueConsumer   *messaging.ScheduledDueConsumer
+	deliveryResultConsumer *apimessaging.DeliveryResultConsumer
+	scheduledDueConsumer   *apimessaging.ScheduledDueConsumer
+	outboxRelay            *sharedmessaging.OutboxRelay
 	wg                     sync.WaitGroup
 }
 
@@ -40,15 +44,18 @@ func New(ctx context.Context, cfg *config.Config) (*App, func()) {
 	}
 	pub := natsmsg.NewPublisher(natsHandle)
 
-	statusMsgs := natsmsg.Subscribe[processorpub.NotificationDeliveryResultEvent](
+	// Subscribe to CloudEvents instead of typed events
+	statusMsgs := natsmsg.Subscribe[cloudevents.Event](
 		ctx, natsHandle, processorpub.TopicStatus, "api-status", cfg.OTelServiceName, 0,
 	)
-	scheduledDueMsgs := natsmsg.SubscribeBatch[dspub.ScheduledNotificationDueEvent](
+	scheduledDueMsgs := natsmsg.SubscribeBatch[cloudevents.Event](
 		ctx, natsHandle, dspub.TopicScheduledNotificationDue, "api-scheduled-due", cfg.OTelServiceName, 0,
 	)
 
 	notifRepo := postgres.NewNotificationRepository(bundb)
-	svc := service.NewNotificationService(notifRepo, pub)
+	outboxRepo := postgres.NewOutboxRepository(bundb)
+	txManager := buntx.NewManager(bundb)
+	svc := service.NewNotificationService(notifRepo, outboxRepo, txManager)
 	router := handler.NewRouter(handler.Deps{Service: svc, DB: bundb})
 
 	srv := &http.Server{
@@ -57,6 +64,15 @@ func New(ctx context.Context, cfg *config.Config) (*App, func()) {
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 
+	// Create outbox relay
+	outboxRelay := sharedmessaging.NewOutboxRelay(
+		outboxRepo,
+		pub,
+		500*time.Millisecond,
+		100,
+		10,
+	)
+
 	cleanup := func() {
 		natsHandle.Close()
 		_ = bundb.Close()
@@ -64,8 +80,9 @@ func New(ctx context.Context, cfg *config.Config) (*App, func()) {
 
 	return &App{
 		server:                 srv,
-		deliveryResultConsumer: messaging.NewDeliveryResultConsumer(svc, statusMsgs),
-		scheduledDueConsumer:   messaging.NewScheduledDueConsumer(notifRepo, pub, scheduledDueMsgs),
+		deliveryResultConsumer: apimessaging.NewDeliveryResultConsumer(svc, statusMsgs),
+		scheduledDueConsumer:   apimessaging.NewScheduledDueConsumer(notifRepo, outboxRepo, scheduledDueMsgs),
+		outboxRelay:            outboxRelay,
 	}, cleanup
 }
 
@@ -82,6 +99,12 @@ func (a *App) Start(ctx context.Context) func(context.Context) {
 	go func() {
 		defer a.wg.Done()
 		a.scheduledDueConsumer.Run(ctx)
+	}()
+
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.outboxRelay.Run(ctx)
 	}()
 
 	go func() {

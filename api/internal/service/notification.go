@@ -10,8 +10,10 @@ import (
 	"github.com/barkin94/insider-notification/api/internal/db"
 	"github.com/barkin94/insider-notification/api/internal/domain/notification"
 	apipub "github.com/barkin94/insider-notification/api/public"
-	sharedErrors "github.com/barkin94/insider-notification/shared/genericerrors"
-	stream "github.com/barkin94/insider-notification/shared/messaging"
+	"github.com/barkin94/insider-notification/shared/events"
+	"github.com/barkin94/insider-notification/shared/genericerrors"
+	"github.com/barkin94/insider-notification/shared/messaging"
+	"github.com/barkin94/insider-notification/shared/txmanager"
 )
 
 // BatchResult holds the outcome of one item in a batch create operation.
@@ -33,23 +35,30 @@ type NotificationService interface {
 }
 
 type notificationService struct {
-	repo      db.NotificationRepository
-	publisher stream.Publisher
+	repo       db.NotificationRepository
+	outboxRepo messaging.OutboxWriter
+	txManager  txmanager.TransactionManager
 }
 
 func NewNotificationService(
 	repo db.NotificationRepository,
-	publisher stream.Publisher,
+	outboxRepo messaging.OutboxWriter,
+	txManager txmanager.TransactionManager,
 ) NotificationService {
-	return &notificationService{repo: repo, publisher: publisher}
+	return &notificationService{repo: repo, outboxRepo: outboxRepo, txManager: txManager}
 }
 
 func (s *notificationService) Create(ctx context.Context, n notification.Notification) (*db.Notification, error) {
-	entity, err := s.persist(ctx, n, nil)
+	var entity *db.Notification
+	err := s.txManager.RunInTx(ctx, func(ctx context.Context) error {
+		var err error
+		entity, err = s.persist(ctx, n, nil)
+		if err != nil {
+			return err
+		}
+		return s.writeToOutbox(ctx, entity)
+	})
 	if err != nil {
-		return nil, err
-	}
-	if err := s.publish(ctx, entity); err != nil {
 		return nil, err
 	}
 	return entity, nil
@@ -64,45 +73,55 @@ func (s *notificationService) List(ctx context.Context, filter db.ListFilter) ([
 }
 
 func (s *notificationService) Cancel(ctx context.Context, id uuid.UUID) (*db.Notification, error) {
-	entity, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			return nil, &sharedErrors.NotFoundError{Message: "notification not found"}
+	var updated *db.Notification
+	err := s.txManager.RunInTx(ctx, func(ctx context.Context) error {
+		entity, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				return &genericerrors.NotFoundError{Message: "notification not found"}
+			}
+			return err
 		}
-		return nil, err
-	}
 
-	dn := entity.ToDomain()
-	if err := dn.Transition(apipub.StatusCancelled); err != nil {
-		return nil, &sharedErrors.ConflictError{Message: err.Error()}
-	}
+		dn := entity.ToDomain()
+		if err := dn.Transition(apipub.StatusCancelled); err != nil {
+			return &genericerrors.ConflictError{Message: err.Error()}
+		}
 
-	updated, err := s.repo.UpdateStatus(ctx, id, string(apipub.StatusCancelled))
+		var err2 error
+		updated, err2 = s.repo.UpdateStatus(ctx, id, string(apipub.StatusCancelled))
+		if err2 != nil {
+			return err2
+		}
+
+		// Write cancellation event to outbox
+		outboxEvent, err := BuildNotificationCancelledEvent(ctx, id.String(), "notify.schedule.cancelled")
+		if err != nil {
+			return fmt.Errorf("write cancel event to outbox: %w", err)
+		}
+		return s.outboxRepo.Save(ctx, outboxEvent)
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	evt := apipub.NotificationScheduleCancelledEvent{NotificationID: id.String()}
-	if err := s.publisher.Publish(ctx, string(apipub.TopicNotificationScheduleCancelled), evt); err != nil {
-		return nil, fmt.Errorf("publish cancel event: %w", err)
-	}
-
 	return updated, nil
 }
 
 func (s *notificationService) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
-	entity, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
+	return s.txManager.RunInTx(ctx, func(ctx context.Context) error {
+		entity, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
 
-	dn := entity.ToDomain()
-	if err := dn.Transition(apipub.Status(status)); err != nil {
-		return err
-	}
+		dn := entity.ToDomain()
+		if err := dn.Transition(apipub.Status(status)); err != nil {
+			return err
+		}
 
-	_, err = s.repo.UpdateStatus(ctx, id, status)
-	return err
+		_, err = s.repo.UpdateStatus(ctx, id, status)
+		return err
+	})
 }
 
 func (s *notificationService) CreateBatch(ctx context.Context, ns []notification.Notification) (uuid.UUID, []BatchResult, error) {
@@ -133,45 +152,60 @@ func (s *notificationService) CreateBatch(ctx context.Context, ns []notification
 	}
 
 	if len(acceptedEntities) > 0 {
-		if err := s.repo.CreateBatch(ctx, acceptedEntities); err != nil {
-			msg := fmt.Sprintf("create notifications: %v", err)
-			for _, i := range acceptedIndices {
-				results[i].Status = "rejected"
-				results[i].Error = &msg
-				results[i].ID = nil
+		err := s.txManager.RunInTx(ctx, func(ctx context.Context) error {
+			if err := s.repo.CreateBatch(ctx, acceptedEntities); err != nil {
+				msg := fmt.Sprintf("create notifications: %v", err)
+				for _, i := range acceptedIndices {
+					results[i].Status = "rejected"
+					results[i].Error = &msg
+					results[i].ID = nil
+				}
+				return err
 			}
-			acceptedEntities = nil
-		}
-	}
 
-	// Separate scheduled and immediate notifications
-	scheduled := make([]apipub.ScheduledNotificationItem, 0)
-	immediate := make([]*db.Notification, 0)
+			// Separate scheduled and immediate notifications
+			var scheduledItems []events.ScheduledNotificationItem
+			immediate := make([]*db.Notification, 0)
 
-	for _, entity := range acceptedEntities {
-		if entity.DeliverAfter != nil {
-			scheduled = append(scheduled, apipub.ScheduledNotificationItem{
-				NotificationID: entity.ID.String(),
-				ScheduledAt:    *entity.DeliverAfter,
-			})
-		} else {
-			immediate = append(immediate, entity)
-		}
-	}
+			for _, entity := range acceptedEntities {
+				if entity.DeliverAfter != nil {
+					scheduledItems = append(scheduledItems, events.ScheduledNotificationItem{
+						NotificationID: entity.ID.String(),
+						ScheduledAt:    *entity.DeliverAfter,
+					})
+				} else {
+					immediate = append(immediate, entity)
+				}
+			}
 
-	// Publish scheduled notifications as a batch
-	if len(scheduled) > 0 {
-		evt := apipub.NotificationsScheduledEvent{Notifications: scheduled}
-		if err := s.publisher.Publish(ctx, string(apipub.TopicNotificationScheduled), evt); err != nil {
-			return batchID, results, fmt.Errorf("publish scheduled events: %w", err)
-		}
-	}
+			// Write scheduled notifications event to outbox
+			if len(scheduledItems) > 0 {
+				outboxEvent, err := BuildNotificationScheduledEvent(ctx, batchID.String(), scheduledItems, "notify.scheduled")
+				if err != nil {
+					return fmt.Errorf("write scheduled events to outbox: %w", err)
+				}
+				if err := s.outboxRepo.Save(ctx, outboxEvent); err != nil {
+					return fmt.Errorf("write scheduled events to outbox: %w", err)
+				}
+			}
 
-	// Publish immediate notifications
-	for _, entity := range immediate {
-		evt := apipub.NotificationReadyEvent{}.From(entity)
-		if err := s.publisher.Publish(ctx, string(apipub.TopicByPriority[apipub.Priority(entity.Priority)]), evt); err != nil {
-			return batchID, results, fmt.Errorf("publish ready event: %w", err)
+			// Write immediate notifications to outbox
+			for _, entity := range immediate {
+				dn := entity.ToDomain()
+				outboxEvent, err := BuildNotificationReadyEvent(ctx, entity.ID.String(), dn, priorityToTopic(entity.Priority))
+				if err != nil {
+					return fmt.Errorf("write ready event to outbox: %w", err)
+				}
+				if err := s.outboxRepo.Save(ctx, outboxEvent); err != nil {
+					return fmt.Errorf("write ready event to outbox: %w", err)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			// Results already updated in the transaction
+			return batchID, results, err
 		}
 	}
 
@@ -189,25 +223,67 @@ func (s *notificationService) persist(ctx context.Context, n notification.Notifi
 	return entity, nil
 }
 
-func (s *notificationService) publish(ctx context.Context, entity *db.Notification) error {
+func (s *notificationService) writeToOutbox(ctx context.Context, entity *db.Notification) error {
+	dn := entity.ToDomain()
 	if entity.DeliverAfter != nil {
-		// Scheduled notification: publish to delivery scheduler service
-		evt := apipub.NotificationsScheduledEvent{
-			Notifications: []apipub.ScheduledNotificationItem{
-				{
-					NotificationID: entity.ID.String(),
-					ScheduledAt:    *entity.DeliverAfter,
-				},
+		// Scheduled notification
+		outboxEvent, err := BuildNotificationScheduledEvent(ctx, entity.ID.String(), []events.ScheduledNotificationItem{
+			{
+				NotificationID: entity.ID.String(),
+				ScheduledAt:    *entity.DeliverAfter,
 			},
+		}, "notify.scheduled")
+		if err != nil {
+			return err
 		}
-		if err := s.publisher.Publish(ctx, string(apipub.TopicNotificationScheduled), evt); err != nil {
-			return fmt.Errorf("publish scheduled event: %w", err)
-		}
-		return nil
+		return s.outboxRepo.Save(ctx, outboxEvent)
 	}
-	evt := apipub.NotificationReadyEvent{}.From(entity)
-	if err := s.publisher.Publish(ctx, string(apipub.TopicByPriority[apipub.Priority(entity.Priority)]), evt); err != nil {
-		return fmt.Errorf("publish event: %w", err)
+
+	// Immediate notification
+	outboxEvent, err := BuildNotificationReadyEvent(ctx, entity.ID.String(), dn, priorityToTopic(entity.Priority))
+	if err != nil {
+		return err
 	}
-	return nil
+	return s.outboxRepo.Save(ctx, outboxEvent)
+}
+
+func priorityToTopic(priority string) string {
+	switch priority {
+	case "high":
+		return "notify.high"
+	case "low":
+		return "notify.low"
+	default:
+		return "notify.normal"
+	}
+}
+
+// BuildNotificationReadyEvent creates an OutboxEvent for NotificationReady.
+// Takes the notification ID (from persistence) and domain notification for the payload data.
+func BuildNotificationReadyEvent(ctx context.Context, notificationID string, n *notification.Notification, topic string) (messaging.OutboxEvent, error) {
+	data := events.NotificationReadyData{
+		NotificationID: notificationID,
+		Channel:        string(n.GetChannel()),
+		Recipient:      n.GetRecipient(),
+		Content:        n.GetContent(),
+		Priority:       string(n.GetPriority()),
+		MaxAttempts:    n.GetMaxAttempts(),
+	}
+	return messaging.BuildOutboxEvent(ctx, data, events.TypeNotificationReady, events.SourceAPI, notificationID, "notification", topic)
+}
+
+// BuildNotificationScheduledEvent creates an OutboxEvent for NotificationsScheduled (batch).
+func BuildNotificationScheduledEvent(ctx context.Context, batchID string, items []events.ScheduledNotificationItem, topic string) (messaging.OutboxEvent, error) {
+	data := events.NotificationsScheduledData{
+		Notifications: items,
+	}
+	return messaging.BuildOutboxEvent(ctx, data, events.TypeNotificationsScheduled, events.SourceAPI, batchID, "batch", topic)
+}
+
+// BuildNotificationCancelledEvent creates an OutboxEvent for NotificationScheduleCancelled.
+func BuildNotificationCancelledEvent(ctx context.Context, notificationID, topic string) (messaging.OutboxEvent, error) {
+	data := events.NotificationScheduleCancelledData{
+		NotificationID: notificationID,
+	}
+	return messaging.BuildOutboxEvent(ctx, data, events.TypeNotificationScheduleCancelled, events.SourceAPI, notificationID, "notification", topic)
 }

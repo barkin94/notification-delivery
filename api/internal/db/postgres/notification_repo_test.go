@@ -9,6 +9,8 @@ import (
 
 	"github.com/barkin94/insider-notification/api/internal/db"
 	apipub "github.com/barkin94/insider-notification/api/public"
+	"github.com/barkin94/insider-notification/shared/txmanager"
+	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
 )
 
 func newNotification() *db.Notification {
@@ -37,10 +39,13 @@ func mustV7() uuid.UUID {
 
 func TestNotificationRepo_Create_GetByID(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	n := newNotification()
-	if err := repo.Create(ctx, n); err != nil {
+	if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+		return repo.Create(ctx, n)
+	}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
@@ -71,15 +76,25 @@ func TestNotificationRepo_GetByID_notFound(t *testing.T) {
 
 func TestNotificationRepo_UpdateStatus(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	n := newNotification()
-	if err := repo.Create(ctx, n); err != nil {
+	if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+		return repo.Create(ctx, n)
+	}); err != nil {
 		t.Fatalf("create notification: %v", err)
 	}
 
-	updated, err := repo.UpdateStatus(ctx, n.ID, string(apipub.StatusCancelled))
-	if err != nil {
+	var updated *db.Notification
+	if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+		u, err := repo.UpdateStatus(ctx, n.ID, string(apipub.StatusCancelled))
+		if err != nil {
+			return err
+		}
+		updated = u
+		return nil
+	}); err != nil {
 		t.Fatalf("UpdateStatus: %v", err)
 	}
 	if updated.Status != string(apipub.StatusCancelled) {
@@ -89,13 +104,16 @@ func TestNotificationRepo_UpdateStatus(t *testing.T) {
 
 func TestList_offset_pagination(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	batchID := mustV7()
 	for range 5 {
 		n := newNotification()
 		n.BatchID = &batchID
-		if err := repo.Create(ctx, n); err != nil {
+		if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+			return repo.Create(ctx, n)
+		}); err != nil {
 			t.Fatalf("create notification: %v", err)
 		}
 	}
@@ -117,20 +135,25 @@ func TestList_offset_pagination(t *testing.T) {
 
 func TestList_offset_filterByStatus(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	batchID := mustV7()
 	for range 3 {
 		n := newNotification()
 		n.BatchID = &batchID
-		if err := repo.Create(ctx, n); err != nil {
+		if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+			return repo.Create(ctx, n)
+		}); err != nil {
 			t.Fatalf("create notification: %v", err)
 		}
 	}
 	n := newNotification()
 	n.BatchID = &batchID
 	n.Status = string(apipub.StatusDelivered)
-	if err := repo.Create(ctx, n); err != nil {
+	if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+		return repo.Create(ctx, n)
+	}); err != nil {
 		t.Fatalf("create notification: %v", err)
 	}
 
@@ -147,13 +170,15 @@ func TestList_offset_filterByStatus(t *testing.T) {
 	}
 }
 
-func seed5(t *testing.T, repo db.NotificationRepository, batchID uuid.UUID) []*db.Notification {
+func seed5(t *testing.T, txMgr txmanager.TransactionManager, repo db.NotificationRepository, batchID uuid.UUID) []*db.Notification {
 	t.Helper()
 	ctx := context.Background()
 	for range 5 {
 		n := newNotification()
 		n.BatchID = &batchID
-		if err := repo.Create(ctx, n); err != nil {
+		if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+			return repo.Create(ctx, n)
+		}); err != nil {
 			t.Fatalf("seed: %v", err)
 		}
 	}
@@ -167,10 +192,11 @@ func seed5(t *testing.T, repo db.NotificationRepository, batchID uuid.UUID) []*d
 
 func TestList_cursor_firstPage(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	batchID := mustV7()
-	all := seed5(t, repo, batchID)
+	all := seed5(t, txMgr, repo, batchID)
 
 	maxUUID := uuid.UUID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 	results, total, nextCursor, err := repo.List(ctx, db.ListFilter{
@@ -203,10 +229,11 @@ func TestList_cursor_firstPage(t *testing.T) {
 
 func TestList_cursor_secondPage(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	batchID := mustV7()
-	all := seed5(t, repo, batchID)
+	all := seed5(t, txMgr, repo, batchID)
 
 	cursorID := all[2].ID
 	page2, total, nextCursor, err := repo.List(ctx, db.ListFilter{
@@ -233,10 +260,11 @@ func TestList_cursor_secondPage(t *testing.T) {
 
 func TestList_cursor_lastPage_noNextCursor(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	batchID := mustV7()
-	seed5(t, repo, batchID)
+	seed5(t, txMgr, repo, batchID)
 
 	maxUUID := uuid.UUID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 	results, total, nextCursor, err := repo.List(ctx, db.ListFilter{
@@ -260,6 +288,7 @@ func TestList_cursor_lastPage_noNextCursor(t *testing.T) {
 
 func TestList_cursor_filtersPreserved(t *testing.T) {
 	ctx := context.Background()
+	txMgr := buntx.NewManager(testDB)
 	repo := NewNotificationRepository(testDB)
 
 	batchID := mustV7()
@@ -267,7 +296,9 @@ func TestList_cursor_filtersPreserved(t *testing.T) {
 		n := newNotification()
 		n.BatchID = &batchID
 		n.Channel = string(apipub.ChannelSMS)
-		if err := repo.Create(ctx, n); err != nil {
+		if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+			return repo.Create(ctx, n)
+		}); err != nil {
 			t.Fatalf("create notification: %v", err)
 		}
 	}
@@ -275,7 +306,9 @@ func TestList_cursor_filtersPreserved(t *testing.T) {
 		n := newNotification()
 		n.BatchID = &batchID
 		n.Channel = string(apipub.ChannelEmail)
-		if err := repo.Create(ctx, n); err != nil {
+		if err := txMgr.RunInTx(ctx, func(ctx context.Context) error {
+			return repo.Create(ctx, n)
+		}); err != nil {
 			t.Fatalf("create notification: %v", err)
 		}
 	}

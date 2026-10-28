@@ -2,25 +2,27 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
 	db "github.com/barkin94/insider-notification/deliveryscheduler/internal/db"
-	sharedbun "github.com/barkin94/insider-notification/shared/bun"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	"github.com/barkin94/insider-notification/shared/bun"
+	"github.com/barkin94/insider-notification/shared/events"
 	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
-// Consumer consumes NotificationsScheduledEvent and persists scheduled notifications to Postgres
+// Consumer consumes NotificationsScheduledEvent CloudEvents and persists scheduled notifications to Postgres
 // so the dispatcher picks them up when scheduled_at time has passed.
 type Consumer struct {
 	repo db.ScheduledNotificationRepository
-	msgs <-chan natsmsg.Result[apipub.NotificationsScheduledEvent]
+	msgs <-chan natsmsg.Result[cloudevents.Event]
 }
 
 func NewConsumer(
 	repo db.ScheduledNotificationRepository,
-	msgs <-chan natsmsg.Result[apipub.NotificationsScheduledEvent],
+	msgs <-chan natsmsg.Result[cloudevents.Event],
 ) *Consumer {
 	return &Consumer{repo: repo, msgs: msgs}
 }
@@ -29,18 +31,26 @@ func (c *Consumer) Run(ctx context.Context) {
 	natsmsg.ForEach(ctx, c.msgs, c.handleScheduledEvents)
 }
 
-func (c *Consumer) handleScheduledEvents(result natsmsg.Result[apipub.NotificationsScheduledEvent]) {
+func (c *Consumer) handleScheduledEvents(result natsmsg.Result[cloudevents.Event]) {
 	ctx := result.Ctx
-	evt := result.Event
+
+	// Extract scheduled notifications data from CloudEvent
+	var scheduledData events.NotificationsScheduledData
+	if err := json.Unmarshal(result.Event.Data(), &scheduledData); err != nil {
+		slog.ErrorContext(ctx, "parse CloudEvent data", "error", err)
+		sharedotel.RecordError(ctx, err)
+		_ = result.Msg.Nak()
+		return
+	}
 
 	traceMetadata := sharedotel.ExtractTraceMetadata(ctx)
-	notifications := make([]*db.ScheduledNotification, len(evt.Notifications))
-	for i, item := range evt.Notifications {
+	notifications := make([]*db.ScheduledNotification, len(scheduledData.Notifications))
+	for i, item := range scheduledData.Notifications {
 		scheduledAt := item.ScheduledAt
 		notifications[i] = &db.ScheduledNotification{
 			NotificationID:     item.NotificationID,
 			ScheduledAt:        &scheduledAt,
-			TraceMetadataModel: sharedbun.TraceMetadataModel{TraceMetadata: traceMetadata},
+			TraceMetadataModel: bun.TraceMetadataModel{TraceMetadata: traceMetadata},
 		}
 	}
 
@@ -55,7 +65,7 @@ func (c *Consumer) handleScheduledEvents(result natsmsg.Result[apipub.Notificati
 		return
 	}
 
-	for _, item := range evt.Notifications {
+	for _, item := range scheduledData.Notifications {
 		slog.InfoContext(ctx, "notification scheduled", "id", item.NotificationID, "scheduled_at", item.ScheduledAt)
 	}
 	_ = result.Msg.Ack()

@@ -3,6 +3,7 @@ package messaging_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"log"
 	"os"
 	"testing"
@@ -25,13 +26,11 @@ import (
 	apipub "github.com/barkin94/insider-notification/api/public"
 	natsio "github.com/nats-io/nats.go"
 
-	processorpub "github.com/barkin94/insider-notification/processor/public"
+	"github.com/barkin94/insider-notification/shared/events"
+	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
 	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
-
-type noopPublisher struct{}
-
-func (noopPublisher) Publish(_ context.Context, _ string, _ any) error { return nil }
 
 var testDB *bun.DB
 
@@ -98,21 +97,56 @@ func seedNotification(t *testing.T, id uuid.UUID, status string) {
 	}
 }
 
-func makeResult(evt processorpub.NotificationDeliveryResultEvent) natsmsg.Result[processorpub.NotificationDeliveryResultEvent] {
-	return natsmsg.Result[processorpub.NotificationDeliveryResultEvent]{
+func makeCloudEventResult(data any) natsmsg.Result[cloudevents.Event] {
+	var ce cloudevents.Event
+	switch e := data.(type) {
+	case cloudevents.Event:
+		ce = e
+	default:
+		ce = cloudevents.NewEvent()
+		ce.SetID(uuid.New().String())
+		ce.SetSource("test")
+		ce.SetTime(time.Now().UTC())
+		payload, _ := json.Marshal(data)
+		ce.SetData(cloudevents.ApplicationJSON, payload)
+	}
+
+	return natsmsg.Result[cloudevents.Event]{
 		Ctx:           context.Background(),
-		Event:         evt,
+		Event:         ce,
 		Msg:           &natsio.Msg{},
 		AttemptNumber: 1,
 	}
 }
 
-func makeSvc() service.NotificationService {
-	return service.NewNotificationService(repopostgres.NewNotificationRepository(testDB), noopPublisher{})
+func makeDeliveryResultEvent(notifID, status string, attempt int, httpCode int, errMsg string, latency int) cloudevents.Event {
+	ce := cloudevents.NewEvent()
+	ce.SetID(uuid.New().String())
+	ce.SetSource("insider-processor")
+	ce.SetType(events.TypeNotificationDeliveryResult)
+	ce.SetTime(time.Now().UTC())
+	ce.SetData(cloudevents.ApplicationJSON, events.NotificationDeliveryResultData{
+		NotificationID:  notifID,
+		Status:          status,
+		AttemptNumber:   attempt,
+		HTTPStatusCode:  httpCode,
+		ErrorMessage:    errMsg,
+		LatencyMS:       latency,
+	})
+	return ce
 }
 
-func runConsumer(svc service.NotificationService, result natsmsg.Result[processorpub.NotificationDeliveryResultEvent]) {
-	ch := make(chan natsmsg.Result[processorpub.NotificationDeliveryResultEvent], 1)
+func makeSvc() service.NotificationService {
+	txManager := buntx.NewManager(testDB)
+	return service.NewNotificationService(
+		repopostgres.NewNotificationRepository(testDB),
+		repopostgres.NewOutboxRepository(testDB),
+		txManager,
+	)
+}
+
+func runConsumer(svc service.NotificationService, result natsmsg.Result[cloudevents.Event]) {
+	ch := make(chan natsmsg.Result[cloudevents.Event], 1)
 	ch <- result
 	close(ch)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -124,14 +158,8 @@ func TestDeliveryResultConsumer_delivered(t *testing.T) {
 	notifID := mustV7()
 	seedNotification(t, notifID, string(apipub.StatusPending))
 
-	evt := processorpub.NotificationDeliveryResultEvent{
-		NotificationID: notifID.String(),
-		Status:         string(apipub.StatusDelivered),
-		AttemptNumber:  1,
-		HTTPStatusCode: 200,
-		LatencyMS:      120,
-	}
-	runConsumer(makeSvc(), makeResult(evt))
+	evt := makeDeliveryResultEvent(notifID.String(), string(apipub.StatusDelivered), 1, 200, "", 120)
+	runConsumer(makeSvc(), makeCloudEventResult(evt))
 
 	got, err := repopostgres.NewNotificationRepository(testDB).GetByID(context.Background(), notifID)
 	if err != nil {
@@ -146,14 +174,8 @@ func TestDeliveryResultConsumer_failed(t *testing.T) {
 	notifID := mustV7()
 	seedNotification(t, notifID, string(apipub.StatusPending))
 
-	evt := processorpub.NotificationDeliveryResultEvent{
-		NotificationID: notifID.String(),
-		Status:         string(apipub.StatusFailed),
-		AttemptNumber:  4,
-		ErrorMessage:   "provider timeout",
-		LatencyMS:      500,
-	}
-	runConsumer(makeSvc(), makeResult(evt))
+	evt := makeDeliveryResultEvent(notifID.String(), string(apipub.StatusFailed), 4, 0, "provider timeout", 500)
+	runConsumer(makeSvc(), makeCloudEventResult(evt))
 
 	got, err := repopostgres.NewNotificationRepository(testDB).GetByID(context.Background(), notifID)
 	if err != nil {
@@ -168,17 +190,11 @@ func TestDeliveryResultConsumer_idempotent(t *testing.T) {
 	notifID := mustV7()
 	seedNotification(t, notifID, string(apipub.StatusPending))
 
-	evt := processorpub.NotificationDeliveryResultEvent{
-		NotificationID: notifID.String(),
-		Status:         string(apipub.StatusDelivered),
-		AttemptNumber:  1,
-		HTTPStatusCode: 200,
-		LatencyMS:      80,
-	}
+	evt := makeDeliveryResultEvent(notifID.String(), string(apipub.StatusDelivered), 1, 200, "", 80)
 
 	svc := makeSvc()
-	runConsumer(svc, makeResult(evt))
-	runConsumer(svc, makeResult(evt)) // second run: domain rejects delivered→delivered, nacks
+	runConsumer(svc, makeCloudEventResult(evt))
+	runConsumer(svc, makeCloudEventResult(evt)) // second run: domain rejects delivered→delivered
 
 	got, err := repopostgres.NewNotificationRepository(testDB).GetByID(context.Background(), notifID)
 	if err != nil {

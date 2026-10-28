@@ -2,23 +2,25 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
 	"github.com/google/uuid"
 
 	"github.com/barkin94/insider-notification/api/internal/service"
-	processorpub "github.com/barkin94/insider-notification/processor/public"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	"github.com/barkin94/insider-notification/shared/events"
 	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
-// DeliveryResultConsumer processes NotificationDeliveryResultEvent messages from the status stream.
+// DeliveryResultConsumer processes NotificationDeliveryResultEvent CloudEvents from the status stream.
 type DeliveryResultConsumer struct {
 	svc  service.NotificationService
-	msgs <-chan natsmsg.Result[processorpub.NotificationDeliveryResultEvent]
+	msgs <-chan natsmsg.Result[cloudevents.Event]
 }
 
-func NewDeliveryResultConsumer(svc service.NotificationService, msgs <-chan natsmsg.Result[processorpub.NotificationDeliveryResultEvent]) *DeliveryResultConsumer {
+func NewDeliveryResultConsumer(svc service.NotificationService, msgs <-chan natsmsg.Result[cloudevents.Event]) *DeliveryResultConsumer {
 	return &DeliveryResultConsumer{svc: svc, msgs: msgs}
 }
 
@@ -26,19 +28,27 @@ func (c *DeliveryResultConsumer) Run(ctx context.Context) {
 	natsmsg.ForEach(ctx, c.msgs, c.processOne)
 }
 
-func (c *DeliveryResultConsumer) processOne(result natsmsg.Result[processorpub.NotificationDeliveryResultEvent]) {
+func (c *DeliveryResultConsumer) processOne(result natsmsg.Result[cloudevents.Event]) {
 	ctx := result.Ctx
-	evt := result.Event
 
-	notifID, err := uuid.Parse(evt.NotificationID)
+	// Extract delivery result data from CloudEvent
+	var deliveryData events.NotificationDeliveryResultData
+	if err := json.Unmarshal(result.Event.Data(), &deliveryData); err != nil {
+		slog.ErrorContext(ctx, "delivery result consumer: parse CloudEvent data", "error", err)
+		sharedotel.RecordError(ctx, err)
+		_ = result.Msg.Nak()
+		return
+	}
+
+	notifID, err := uuid.Parse(deliveryData.NotificationID)
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid notification_id", "notification_id", evt.NotificationID, "error", err)
+		slog.ErrorContext(ctx, "invalid notification_id", "notification_id", deliveryData.NotificationID, "error", err)
 		_ = result.Msg.Nak()
 		sharedotel.RecordError(ctx, err)
 		return
 	}
 
-	if err := c.svc.UpdateStatus(ctx, notifID, evt.Status); err != nil {
+	if err := c.svc.UpdateStatus(ctx, notifID, deliveryData.Status); err != nil {
 		slog.ErrorContext(ctx, "update notification status failed", "notification_id", notifID, "error", err)
 		_ = result.Msg.Nak()
 		sharedotel.RecordError(ctx, err)
@@ -47,8 +57,8 @@ func (c *DeliveryResultConsumer) processOne(result natsmsg.Result[processorpub.N
 
 	slog.InfoContext(ctx, "status event processed",
 		"notification_id", notifID.String(),
-		"status", evt.Status,
-		"attempt", evt.AttemptNumber,
+		"status", deliveryData.Status,
+		"attempt", deliveryData.AttemptNumber,
 	)
 	_ = result.Msg.Ack()
 }

@@ -25,6 +25,8 @@ type ListFilter struct {
 }
 
 // NotificationRepository is the port for notification persistence.
+// Transaction is retrieved from context via txmanager.GetTx(ctx).
+// If no transaction in context, uses default repository connection.
 type NotificationRepository interface {
 	Create(ctx context.Context, n *Notification) error
 	CreateBatch(ctx context.Context, ns []*Notification) error

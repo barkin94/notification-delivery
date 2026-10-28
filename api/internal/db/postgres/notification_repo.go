@@ -10,18 +10,25 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/barkin94/insider-notification/api/internal/db"
+	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
 )
 
-type bunNotificationRepo struct{ db *bun.DB }
+type bunNotificationRepo struct {
+	store buntx.Store
+}
 
 var _ db.NotificationRepository = (*bunNotificationRepo)(nil)
 
-func NewNotificationRepository(db *bun.DB) db.NotificationRepository {
-	return &bunNotificationRepo{db: db}
+func NewNotificationRepository(db bun.IDB) db.NotificationRepository {
+	return &bunNotificationRepo{store: buntx.NewStore(db)}
 }
 
 func (r *bunNotificationRepo) Create(ctx context.Context, n *db.Notification) error {
-	_, err := r.db.NewInsert().Model(n).Exec(ctx)
+	tx, err := r.store.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = tx.NewInsert().Model(n).Exec(ctx)
 	return err
 }
 
@@ -29,7 +36,11 @@ func (r *bunNotificationRepo) CreateBatch(ctx context.Context, ns []*db.Notifica
 	if len(ns) == 0 {
 		return nil
 	}
-	_, err := r.db.NewInsert().Model(&ns).Exec(ctx)
+	tx, err := r.store.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = tx.NewInsert().Model(&ns).Exec(ctx)
 	return err
 }
 
@@ -37,7 +48,7 @@ func (r *bunNotificationRepo) GetByID(ctx context.Context, id uuid.UUID) (*db.No
 	n := &db.Notification{}
 	n.ID = id
 
-	err := r.db.NewSelect().Model(n).WherePK().Scan(ctx)
+	err := r.store.Conn(ctx).NewSelect().Model(n).WherePK().Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, db.ErrNotFound
 	}
@@ -49,16 +60,21 @@ func (r *bunNotificationRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]
 		return nil, nil
 	}
 	var ns []*db.Notification
-	err := r.db.NewSelect().Model(&ns).Where("id IN (?)", bun.List(ids)).Scan(ctx)
+	err := r.store.Conn(ctx).NewSelect().Model(&ns).Where("id IN (?)", bun.List(ids)).Scan(ctx)
 	return ns, err
 }
 
 func (r *bunNotificationRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string) (*db.Notification, error) {
+	tx, err := r.store.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	n := &db.Notification{}
 	n.ID = id
 	n.Status = status
 
-	err := r.db.NewUpdate().
+	err = tx.NewUpdate().
 		Model(n).
 		OmitZero().
 		WherePK().
@@ -67,12 +83,12 @@ func (r *bunNotificationRepo) UpdateStatus(ctx context.Context, id uuid.UUID, st
 	if err != nil {
 		return nil, err
 	}
-	return n, nil
+	return n, err
 }
 
 func (r *bunNotificationRepo) FindScheduledDue(ctx context.Context) ([]*db.Notification, error) {
 	var rows []*db.Notification
-	err := r.db.NewSelect().
+	err := r.store.Conn(ctx).NewSelect().
 		Model(&rows).
 		Where("deliver_after IS NOT NULL").
 		Where("deliver_after <= NOW()").
@@ -108,16 +124,17 @@ func (r *bunNotificationRepo) List(ctx context.Context, f db.ListFilter) ([]*db.
 		pageSize = 20
 	}
 
-	total, err := applyFilters(r.db.NewSelect().Model((*db.Notification)(nil)), f).Count(ctx)
+	total64, err := applyFilters(r.store.Conn(ctx).NewSelect().Model((*db.Notification)(nil)), f).Count(ctx)
 	if err != nil {
 		return nil, 0, nil, err
 	}
+	total := int(total64)
 
 	var ns []*db.Notification
-	q := applyFilters(r.db.NewSelect().Model(&ns), f)
+	q := applyFilters(r.store.Conn(ctx).NewSelect().Model(&ns), f)
 
 	if f.CursorID != nil {
-		q = q.Where("id < ?", f.CursorID).OrderExpr("id DESC").Limit(pageSize + 1)
+		q = q.Where("id < ?", f.CursorID).OrderExpr("id DESC").Limit(int64(pageSize + 1))
 	} else {
 		sort := "created_at"
 		if f.Sort == "updated_at" {
@@ -131,7 +148,7 @@ func (r *bunNotificationRepo) List(ctx context.Context, f db.ListFilter) ([]*db.
 		if page < 1 {
 			page = 1
 		}
-		q = q.OrderExpr(sort + " " + order).Limit(pageSize + 1).Offset((page - 1) * pageSize)
+		q = q.OrderExpr(sort + " " + order).Limit(int64(pageSize + 1)).Offset(int64((page - 1) * pageSize))
 	}
 
 	if err := q.Scan(ctx); err != nil {

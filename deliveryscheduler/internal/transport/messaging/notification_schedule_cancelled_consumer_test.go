@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	natsio "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
 	db "github.com/barkin94/insider-notification/deliveryscheduler/internal/db"
 	"github.com/barkin94/insider-notification/deliveryscheduler/internal/transport/messaging"
+	"github.com/barkin94/insider-notification/shared/events"
 	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 type cancelMockRepo struct {
@@ -34,17 +35,26 @@ func (m *cancelMockRepo) DeleteByNotificationID(_ context.Context, id string) er
 	return m.deleteErr
 }
 
-func makeCancelResult(notifID string) natsmsg.Result[apipub.NotificationScheduleCancelledEvent] {
-	return natsmsg.Result[apipub.NotificationScheduleCancelledEvent]{
+func makeCancelResult(notifID string) natsmsg.Result[cloudevents.Event] {
+	ce := cloudevents.NewEvent()
+	ce.SetID(uuid.New().String())
+	ce.SetSource("insider-notification-api")
+	ce.SetType(events.TypeNotificationScheduleCancelled)
+	ce.SetTime(time.Now().UTC())
+	ce.SetData(cloudevents.ApplicationJSON, events.NotificationScheduleCancelledData{
+		NotificationID: notifID,
+	})
+
+	return natsmsg.Result[cloudevents.Event]{
 		Ctx:           context.Background(),
-		Event:         apipub.NotificationScheduleCancelledEvent{NotificationID: notifID},
-		Msg:           &natsio.Msg{},
+		Event:         ce,
+		Msg:           &nats.Msg{},
 		AttemptNumber: 1,
 	}
 }
 
-func runCancelConsumer(repo *cancelMockRepo, results ...natsmsg.Result[apipub.NotificationScheduleCancelledEvent]) {
-	ch := make(chan natsmsg.Result[apipub.NotificationScheduleCancelledEvent], len(results))
+func runCancelConsumer(repo *cancelMockRepo, results ...natsmsg.Result[cloudevents.Event]) {
+	ch := make(chan natsmsg.Result[cloudevents.Event], len(results))
 	for _, r := range results {
 		ch <- r
 	}
@@ -70,7 +80,6 @@ func TestCancelConsumer_skipsDeleteOnError(t *testing.T) {
 
 	runCancelConsumer(repo, makeCancelResult(uuid.New().String()))
 
-	// repo.DeleteByNotificationID was called but returned an error; consumer nacked and moved on
 	if len(repo.deletedIDs) != 1 {
 		t.Errorf("expected DeleteByNotificationID to be called once, got %d", len(repo.deletedIDs))
 	}
@@ -80,7 +89,7 @@ func TestCancelConsumer_processesMultipleMessages(t *testing.T) {
 	repo := &cancelMockRepo{}
 	ids := []string{uuid.New().String(), uuid.New().String(), uuid.New().String()}
 
-	results := make([]natsmsg.Result[apipub.NotificationScheduleCancelledEvent], len(ids))
+	results := make([]natsmsg.Result[cloudevents.Event], len(ids))
 	for i, id := range ids {
 		results[i] = makeCancelResult(id)
 	}
@@ -98,7 +107,7 @@ func TestCancelConsumer_processesMultipleMessages(t *testing.T) {
 
 func TestCancelConsumer_stopsOnContextCancel(t *testing.T) {
 	repo := &cancelMockRepo{}
-	ch := make(chan natsmsg.Result[apipub.NotificationScheduleCancelledEvent])
+	ch := make(chan natsmsg.Result[cloudevents.Event])
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})

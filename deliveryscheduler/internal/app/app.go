@@ -10,18 +10,22 @@ import (
 	"github.com/barkin94/insider-notification/deliveryscheduler/internal/config"
 	dbpostgres "github.com/barkin94/insider-notification/deliveryscheduler/internal/db/postgres"
 	dispatcher "github.com/barkin94/insider-notification/deliveryscheduler/internal/scheduled_notification_dispatcher"
-	"github.com/barkin94/insider-notification/deliveryscheduler/internal/transport/messaging"
+	dsmessaging "github.com/barkin94/insider-notification/deliveryscheduler/internal/transport/messaging"
 	sharedbun "github.com/barkin94/insider-notification/shared/bun"
+	sharedmessaging "github.com/barkin94/insider-notification/shared/messaging"
+	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
 	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 const notificationStream = "NOTIFICATIONS"
 
 // App wires and runs the delivery scheduler service.
 type App struct {
-	consumer       *messaging.Consumer
-	cancelConsumer *messaging.CancelConsumer
+	consumer       *dsmessaging.Consumer
+	cancelConsumer *dsmessaging.CancelConsumer
 	dispatcher     *dispatcher.ScheduledNotificationDispatcher
+	outboxRelay    *sharedmessaging.OutboxRelay
 	pollInterval   time.Duration
 	wg             sync.WaitGroup
 }
@@ -31,6 +35,8 @@ type App struct {
 func New(ctx context.Context, cfg *config.Config) (*App, func(), error) {
 	bunDB := sharedbun.Connect(cfg.DatabaseURL)
 	repo := dbpostgres.NewScheduledNotificationRepository(bunDB)
+	outboxRepo := dbpostgres.NewOutboxRepository(bunDB)
+	txManager := buntx.NewManager(bunDB)
 
 	natsHandle := natsmsg.NewHandle(cfg.NATSAddr)
 	if err := natsmsg.EnsureStream(natsHandle, notificationStream, []string{"notify.>"}); err != nil {
@@ -40,10 +46,11 @@ func New(ctx context.Context, cfg *config.Config) (*App, func(), error) {
 	}
 	pub := natsmsg.NewPublisher(natsHandle)
 
-	msgs := natsmsg.Subscribe[apipub.NotificationsScheduledEvent](
+	// Subscribe to CloudEvents instead of typed events
+	msgs := natsmsg.Subscribe[cloudevents.Event](
 		ctx, natsHandle, string(apipub.TopicNotificationScheduled), "ds-scheduled", cfg.OTelServiceName, 0,
 	)
-	cancelMsgs := natsmsg.Subscribe[apipub.NotificationScheduleCancelledEvent](
+	cancelMsgs := natsmsg.Subscribe[cloudevents.Event](
 		ctx, natsHandle, string(apipub.TopicNotificationScheduleCancelled), "ds-cancel", cfg.OTelServiceName, 0,
 	)
 
@@ -52,10 +59,20 @@ func New(ctx context.Context, cfg *config.Config) (*App, func(), error) {
 		_ = bunDB.Close()
 	}
 
+	// Create outbox relay
+	outboxRelay := sharedmessaging.NewOutboxRelay(
+		outboxRepo,
+		pub,
+		500*time.Millisecond,
+		100,
+		10,
+	)
+
 	return &App{
-		consumer:       messaging.NewConsumer(repo, msgs),
-		cancelConsumer: messaging.NewCancelConsumer(repo, cancelMsgs),
-		dispatcher:     dispatcher.NewScheduledNotificationDispatcher(repo, pub, cfg.PollBatchSize),
+		consumer:       dsmessaging.NewConsumer(repo, msgs),
+		cancelConsumer: dsmessaging.NewCancelConsumer(repo, cancelMsgs),
+		dispatcher:     dispatcher.NewScheduledNotificationDispatcher(repo, outboxRepo, txManager, cfg.PollBatchSize),
+		outboxRelay:    outboxRelay,
 		pollInterval:   cfg.PollInterval,
 	}, cleanup, nil
 }
@@ -65,6 +82,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, func(), error) {
 func (a *App) Start(ctx context.Context) func() {
 	a.wg.Go(func() { a.consumer.Run(ctx) })
 	a.wg.Go(func() { a.cancelConsumer.Run(ctx) })
+	a.wg.Go(func() { a.outboxRelay.Run(ctx) })
 	a.wg.Go(func() {
 		ticker := time.NewTicker(a.pollInterval)
 		defer ticker.Stop()
