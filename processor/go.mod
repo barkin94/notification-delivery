@@ -11,7 +11,7 @@ replace (
 require (
 	github.com/barkin94/notification-system/api/public v0.5.0
 	github.com/barkin94/notification-system/processor/public v0.3.0
-	github.com/barkin94/notification-system/shared v0.5.0
+	github.com/barkin94/notification-system/shared v0.6.0
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/google/uuid v1.6.0

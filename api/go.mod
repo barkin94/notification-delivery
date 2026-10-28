@@ -13,7 +13,7 @@ require (
 	github.com/barkin94/notification-system/api/public v0.5.0
 	github.com/barkin94/notification-system/deliveryscheduler/public v0.3.0
 	github.com/barkin94/notification-system/processor/public v0.3.0
-	github.com/barkin94/notification-system/shared v0.5.0
+	github.com/barkin94/notification-system/shared v0.6.0
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
