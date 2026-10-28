@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	db "github.com/barkin94/notification-system/deliveryscheduler/internal/db"
 	"github.com/barkin94/notification-system/shared/bun"
 	"github.com/barkin94/notification-system/shared/events"
-	sharedotel "github.com/barkin94/notification-system/shared/otel"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 )
 
 // Consumer consumes NotificationsScheduledEvent CloudEvents and persists scheduled notifications to Postgres

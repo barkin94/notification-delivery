@@ -6,8 +6,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/barkin94/notification-system/shared/otel"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+
+	"github.com/barkin94/notification-system/shared/otel"
 )
 
 // OutboxRelay publishes events from the outbox to the message stream
@@ -81,7 +82,7 @@ func (r *OutboxRelay) flush(ctx context.Context) {
 		msgs := make([]BatchMessage, len(topicEvents))
 		for i, e := range topicEvents {
 			// Parse trace headers if present
-			var traceCtx context.Context = ctx
+			var traceCtx = ctx
 			if len(e.TraceHeaders) > 0 {
 				var headers map[string]string
 				if err := json.Unmarshal(e.TraceHeaders, &headers); err == nil {

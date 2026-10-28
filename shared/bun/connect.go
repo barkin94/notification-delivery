@@ -18,6 +18,7 @@ func Connect(databaseURL string) *bun.DB {
 		panic("connect to postgres: " + err.Error())
 	}
 
+	// nolint:staticcheck // AddQueryHook is deprecated but WithQueryHook not available in bun v1.3.0
 	bundb.AddQueryHook(
 		bunotel.NewQueryHook(
 			bunotel.WithDBName(conn.Config().Database),

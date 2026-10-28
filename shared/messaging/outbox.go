@@ -89,7 +89,7 @@ func (r *bunOutboxRepo) MarkPublished(ctx context.Context, ids []string, publish
 	_, err := r.store.Conn(ctx).NewUpdate().
 		Model((*OutboxEvent)(nil)).
 		Set("published_at = ?", publishedAt).
-		Where("id IN (?)", bun.In(uuidIDs)).
+		Where("id IN (?)", bun.List(uuidIDs)).
 		Exec(ctx)
 	return err
 }
@@ -105,7 +105,7 @@ func (r *bunOutboxRepo) IncrementRetryCount(ctx context.Context, ids []string) e
 	_, err := r.store.Conn(ctx).NewUpdate().
 		Model((*OutboxEvent)(nil)).
 		Set("retry_count = retry_count + 1").
-		Where("id IN (?)", bun.In(uuidIDs)).
+		Where("id IN (?)", bun.List(uuidIDs)).
 		Exec(ctx)
 	return err
 }

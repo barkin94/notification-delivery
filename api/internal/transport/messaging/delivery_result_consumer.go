@@ -7,11 +7,12 @@ import (
 
 	"github.com/google/uuid"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/barkin94/notification-system/api/internal/service"
 	"github.com/barkin94/notification-system/shared/events"
-	sharedotel "github.com/barkin94/notification-system/shared/otel"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 )
 
 // DeliveryResultConsumer processes NotificationDeliveryResultEvent CloudEvents from the status stream.

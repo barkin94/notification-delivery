@@ -3,8 +3,9 @@ package db
 import (
 	"time"
 
-	sharedbun "github.com/barkin94/notification-system/shared/bun"
 	"github.com/uptrace/bun"
+
+	sharedbun "github.com/barkin94/notification-system/shared/bun"
 )
 
 type ScheduledNotification struct {

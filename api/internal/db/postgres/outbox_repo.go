@@ -1,9 +1,10 @@
 package postgres
 
 import (
+	"github.com/uptrace/bun"
+
 	"github.com/barkin94/notification-system/api/internal/db"
 	"github.com/barkin94/notification-system/shared/messaging"
-	"github.com/uptrace/bun"
 )
 
 // OutboxEvent represents an event stored in the outbox table (exported for adapter)

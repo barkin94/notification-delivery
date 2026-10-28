@@ -10,13 +10,14 @@ import (
 
 	"github.com/google/uuid"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	apipub "github.com/barkin94/notification-system/api/public"
 	"github.com/barkin94/notification-system/processor/internal/delivery"
 	"github.com/barkin94/notification-system/processor/internal/service"
 	processorpub "github.com/barkin94/notification-system/processor/public"
 	"github.com/barkin94/notification-system/shared/events"
 	"github.com/barkin94/notification-system/shared/messaging"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 func unmarshalCloudEvent(payload []byte) (cloudevents.Event, error) {
@@ -40,9 +41,9 @@ func extractDeliveryResult(payload any) (events.NotificationDeliveryResultData, 
 // --- fakes ---
 
 type fakeOutboxRepo struct {
-	mu      sync.Mutex
-	saved   []publishedMsg
-	errOn   string // return errTest when saving for this topic
+	mu    sync.Mutex
+	saved []publishedMsg
+	errOn string // return errTest when saving for this topic
 }
 
 type publishedMsg struct {
@@ -124,45 +125,45 @@ func (f *fakeLimiter) IsAllowed(_ context.Context, _ string) (bool, time.Duratio
 
 func baseEvent() *testReadyEvent {
 	return &testReadyEvent{
-		id:           uuid.New().String(),
-		channel:      string(apipub.ChannelEmail),
-		recipient:    "test@example.com",
-		content:      "test content",
-		priority:     string(apipub.PriorityNormal),
-		maxAttempts:  3,
-		attemptNum:   1,
+		id:          uuid.New().String(),
+		channel:     string(apipub.ChannelEmail),
+		recipient:   "test@example.com",
+		content:     "test content",
+		priority:    string(apipub.PriorityNormal),
+		maxAttempts: 3,
+		attemptNum:  1,
 	}
 }
 
 func baseEventWithID() *testReadyEvent {
 	return &testReadyEvent{
-		id:           "62e89bde-ff46-4abd-b9ca-b0a77834d2f0",
-		channel:      string(apipub.ChannelEmail),
-		recipient:    "test@example.com",
-		content:      "test content",
-		priority:     string(apipub.PriorityNormal),
-		maxAttempts:  3,
-		attemptNum:   1,
+		id:          "62e89bde-ff46-4abd-b9ca-b0a77834d2f0",
+		channel:     string(apipub.ChannelEmail),
+		recipient:   "test@example.com",
+		content:     "test content",
+		priority:    string(apipub.PriorityNormal),
+		maxAttempts: 3,
+		attemptNum:  1,
 	}
 }
 
 // testReadyEvent implements NotificationReadyEvent for testing
 type testReadyEvent struct {
-	id           string
-	channel      string
-	recipient    string
-	content      string
-	priority     string
-	maxAttempts  int
-	attemptNum   int
+	id          string
+	channel     string
+	recipient   string
+	content     string
+	priority    string
+	maxAttempts int
+	attemptNum  int
 }
 
 func (t *testReadyEvent) GetNotificationID() string { return t.id }
-func (t *testReadyEvent) GetChannel() string       { return t.channel }
-func (t *testReadyEvent) GetRecipient() string     { return t.recipient }
-func (t *testReadyEvent) GetContent() string       { return t.content }
-func (t *testReadyEvent) GetPriority() string      { return t.priority }
-func (t *testReadyEvent) GetMaxAttempts() int      { return t.maxAttempts }
+func (t *testReadyEvent) GetChannel() string        { return t.channel }
+func (t *testReadyEvent) GetRecipient() string      { return t.recipient }
+func (t *testReadyEvent) GetContent() string        { return t.content }
+func (t *testReadyEvent) GetPriority() string       { return t.priority }
+func (t *testReadyEvent) GetMaxAttempts() int       { return t.maxAttempts }
 
 func runSingle(p *delivery.NotificationDeliveryPipeline, evt *testReadyEvent) error {
 	ctx := context.Background()

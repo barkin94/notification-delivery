@@ -16,8 +16,8 @@ import (
 	"github.com/barkin94/notification-system/processor/internal/service"
 	"github.com/barkin94/notification-system/processor/internal/transport/messaging"
 	"github.com/barkin94/notification-system/shared/bun"
-	sharedmessaging "github.com/barkin94/notification-system/shared/messaging"
 	"github.com/barkin94/notification-system/shared/lock"
+	sharedmessaging "github.com/barkin94/notification-system/shared/messaging"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 	sharedredis "github.com/barkin94/notification-system/shared/redis"
 )
@@ -84,7 +84,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, func(), error) {
 	}
 
 	return &App{
-		consumer:    messaging.NewNotificationReadyConsumer(
+		consumer: messaging.NewNotificationReadyConsumer(
 			ctx,
 			natsHandle,
 			cfg.OTelServiceName,

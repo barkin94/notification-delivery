@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/barkin94/notification-system/shared/otel"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/google/uuid"
+
+	"github.com/barkin94/notification-system/shared/otel"
 )
 
 // BuildOutboxEvent is the low-level helper that creates an OutboxEvent from raw data.
@@ -21,7 +22,9 @@ func BuildOutboxEvent(ctx context.Context, data any, eventType, source, aggregat
 	ce.SetSource(source)
 	ce.SetType(eventType)
 	ce.SetTime(time.Now().UTC())
-	ce.SetData(cloudevents.ApplicationJSON, data)
+	if err := ce.SetData(cloudevents.ApplicationJSON, data); err != nil {
+		return OutboxEvent{}, fmt.Errorf("set CloudEvent data: %w", err)
+	}
 
 	// Marshal CloudEvent to JSON for outbox payload
 	payload, err := json.Marshal(ce)

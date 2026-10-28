@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/barkin94/notification-system/shared/httpclient"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/barkin94/notification-system/shared/httpclient"
 )
 
 // DeliveryResult holds the outcome of a single delivery attempt.

@@ -15,10 +15,10 @@ import (
 
 // ScheduledNotificationDispatcher claims due scheduled notifications and writes them to outbox.
 type ScheduledNotificationDispatcher struct {
-	repo        db.ScheduledNotificationRepository
-	outboxRepo  db.OutboxRepository
-	txManager   txmanager.TransactionManager
-	batch       int
+	repo       db.ScheduledNotificationRepository
+	outboxRepo db.OutboxRepository
+	txManager  txmanager.TransactionManager
+	batch      int
 }
 
 func NewScheduledNotificationDispatcher(
@@ -31,10 +31,10 @@ func NewScheduledNotificationDispatcher(
 		batch = 100
 	}
 	return &ScheduledNotificationDispatcher{
-		repo:        repo,
-		outboxRepo:  outboxRepo,
-		txManager:   txManager,
-		batch:       batch,
+		repo:       repo,
+		outboxRepo: outboxRepo,
+		txManager:  txManager,
+		batch:      batch,
 	}
 }
 

@@ -135,12 +135,12 @@ func (p *NotificationDeliveryPipeline) handleDeliveryResult(ctx context.Context,
 	default:
 		p.metrics.RecordNotificationFailed(ctx, dr.LatencyMS)
 		data := events.NotificationDeliveryResultData{
-			NotificationID:  evt.GetNotificationID(),
-			Status:          events.DeliveryStatusFailed,
-			AttemptNumber:   currentAttempt,
-			HTTPStatusCode:  dr.StatusCode,
-			ErrorMessage:    dr.ErrorMessage,
-			LatencyMS:       int(dr.LatencyMS),
+			NotificationID: evt.GetNotificationID(),
+			Status:         events.DeliveryStatusFailed,
+			AttemptNumber:  currentAttempt,
+			HTTPStatusCode: dr.StatusCode,
+			ErrorMessage:   dr.ErrorMessage,
+			LatencyMS:      int(dr.LatencyMS),
 		}
 		return p.publishStatus(ctx, data)
 	}

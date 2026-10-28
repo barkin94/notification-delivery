@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nats-io/nats.go"
+
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 
 	"github.com/barkin94/notification-system/deliveryscheduler/internal/db"
 	"github.com/barkin94/notification-system/shared/events"
-	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 // makeCloudEvent creates a CloudEvent for testing with the given data, type, and source.
@@ -23,7 +22,9 @@ func makeCloudEvent(data any, eventType, source string) cloudevents.Event {
 	ce.SetType(eventType)
 	ce.SetTime(time.Now().UTC())
 	payload, _ := json.Marshal(data)
-	ce.SetData(cloudevents.ApplicationJSON, payload)
+	if err := ce.SetData(cloudevents.ApplicationJSON, payload); err != nil {
+		panic(err)
+	}
 	return ce
 }
 
@@ -43,22 +44,6 @@ func (m *MockRepository) DeleteByScheduledAtBeforeReturning(ctx context.Context,
 
 func (m *MockRepository) DeleteByNotificationID(_ context.Context, _ string) error {
 	return nil
-}
-
-func makeCloudEventResult(data any) natsmsg.Result[cloudevents.Event] {
-	ce := cloudevents.NewEvent()
-	ce.SetID(uuid.New().String())
-	ce.SetSource("notification-system-api")
-	ce.SetTime(time.Now().UTC())
-	payload, _ := json.Marshal(data)
-	ce.SetData(cloudevents.ApplicationJSON, payload)
-
-	return natsmsg.Result[cloudevents.Event]{
-		Ctx:           context.Background(),
-		Event:         ce,
-		Msg:           &nats.Msg{},
-		AttemptNumber: 1,
-	}
 }
 
 func TestConsumer_BatchesNotifications_CloudEvents(t *testing.T) {

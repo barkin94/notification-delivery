@@ -7,13 +7,14 @@ import (
 
 	"github.com/google/uuid"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/barkin94/notification-system/api/internal/db"
 	"github.com/barkin94/notification-system/api/internal/service"
 	"github.com/barkin94/notification-system/shared/events"
 	sharedmessaging "github.com/barkin94/notification-system/shared/messaging"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 	sharedotel "github.com/barkin94/notification-system/shared/otel"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 // NotificationReader is the narrow read port for fetching notifications.
@@ -26,9 +27,9 @@ type NotificationReader interface {
 // bulk-fetches the full notification details in a single query, and writes
 // NotificationReadyEvent CloudEvents to the outbox for reliable publishing.
 type ScheduledDueConsumer struct {
-	repo      NotificationReader
+	repo       NotificationReader
 	outboxRepo sharedmessaging.OutboxRepository
-	msgs      <-chan []natsmsg.Result[cloudevents.Event]
+	msgs       <-chan []natsmsg.Result[cloudevents.Event]
 }
 
 func NewScheduledDueConsumer(

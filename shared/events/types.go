@@ -6,18 +6,18 @@ import (
 
 // Event types as constants for CloudEvents type attribute
 const (
-	TypeNotificationReady         = "com.barkin94.notification-system.notification.ready.v1"
-	TypeNotificationsScheduled    = "com.barkin94.notification-system.notification.scheduled.v1"
+	TypeNotificationReady             = "com.barkin94.notification-system.notification.ready.v1"
+	TypeNotificationsScheduled        = "com.barkin94.notification-system.notification.scheduled.v1"
 	TypeNotificationScheduleCancelled = "com.barkin94.notification-system.notification.schedule.cancelled.v1"
-	TypeScheduledNotificationDue  = "com.barkin94.notification-system.notification.scheduled.due.v1"
-	TypeNotificationDeliveryResult = "com.barkin94.notification-system.notification.delivery.result.v1"
+	TypeScheduledNotificationDue      = "com.barkin94.notification-system.notification.scheduled.due.v1"
+	TypeNotificationDeliveryResult    = "com.barkin94.notification-system.notification.delivery.result.v1"
 )
 
 // Source identifiers per service
 const (
-	SourceAPI        = "notification-system-api"
-	SourceScheduler  = "notification-system-scheduler"
-	SourceProcessor  = "notification-system-processor"
+	SourceAPI       = "notification-system-api"
+	SourceScheduler = "notification-system-scheduler"
+	SourceProcessor = "notification-system-processor"
 )
 
 // Delivery status constants

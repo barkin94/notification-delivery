@@ -20,16 +20,18 @@ import (
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
 
+	natsio "github.com/nats-io/nats.go"
+
 	repopostgres "github.com/barkin94/notification-system/api/internal/db/postgres"
 	"github.com/barkin94/notification-system/api/internal/service"
 	"github.com/barkin94/notification-system/api/internal/transport/messaging"
 	apipub "github.com/barkin94/notification-system/api/public"
-	natsio "github.com/nats-io/nats.go"
+
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 
 	"github.com/barkin94/notification-system/shared/events"
-	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 )
 
 var testDB *bun.DB
@@ -108,7 +110,9 @@ func makeCloudEventResult(data any) natsmsg.Result[cloudevents.Event] {
 		ce.SetSource("test")
 		ce.SetTime(time.Now().UTC())
 		payload, _ := json.Marshal(data)
-		ce.SetData(cloudevents.ApplicationJSON, payload)
+		if err := ce.SetData(cloudevents.ApplicationJSON, payload); err != nil {
+			panic(err)
+		}
 	}
 
 	return natsmsg.Result[cloudevents.Event]{
@@ -125,14 +129,16 @@ func makeDeliveryResultEvent(notifID, status string, attempt int, httpCode int, 
 	ce.SetSource("notification-system-processor")
 	ce.SetType(events.TypeNotificationDeliveryResult)
 	ce.SetTime(time.Now().UTC())
-	ce.SetData(cloudevents.ApplicationJSON, events.NotificationDeliveryResultData{
-		NotificationID:  notifID,
-		Status:          status,
-		AttemptNumber:   attempt,
-		HTTPStatusCode:  httpCode,
-		ErrorMessage:    errMsg,
-		LatencyMS:       latency,
-	})
+	if err := ce.SetData(cloudevents.ApplicationJSON, events.NotificationDeliveryResultData{
+		NotificationID: notifID,
+		Status:         status,
+		AttemptNumber:  attempt,
+		HTTPStatusCode: httpCode,
+		ErrorMessage:   errMsg,
+		LatencyMS:      latency,
+	}); err != nil {
+		panic(err)
+	}
 	return ce
 }
 

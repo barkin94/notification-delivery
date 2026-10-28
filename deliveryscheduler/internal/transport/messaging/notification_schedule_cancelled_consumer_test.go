@@ -9,11 +9,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	db "github.com/barkin94/notification-system/deliveryscheduler/internal/db"
 	"github.com/barkin94/notification-system/deliveryscheduler/internal/transport/messaging"
 	"github.com/barkin94/notification-system/shared/events"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 type cancelMockRepo struct {
@@ -41,9 +42,11 @@ func makeCancelResult(notifID string) natsmsg.Result[cloudevents.Event] {
 	ce.SetSource("notification-system-api")
 	ce.SetType(events.TypeNotificationScheduleCancelled)
 	ce.SetTime(time.Now().UTC())
-	ce.SetData(cloudevents.ApplicationJSON, events.NotificationScheduleCancelledData{
+	if err := ce.SetData(cloudevents.ApplicationJSON, events.NotificationScheduleCancelledData{
 		NotificationID: notifID,
-	})
+	}); err != nil {
+		panic(err)
+	}
 
 	return natsmsg.Result[cloudevents.Event]{
 		Ctx:           context.Background(),

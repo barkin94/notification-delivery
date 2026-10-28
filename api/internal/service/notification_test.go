@@ -9,24 +9,25 @@ import (
 
 	"github.com/google/uuid"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/barkin94/notification-system/api/internal/db"
 	"github.com/barkin94/notification-system/api/internal/domain/notification"
 	"github.com/barkin94/notification-system/api/internal/service"
 	apipub "github.com/barkin94/notification-system/api/public"
-	sharedErrors "github.com/barkin94/notification-system/shared/genericerrors"
 	"github.com/barkin94/notification-system/shared/events"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	sharedErrors "github.com/barkin94/notification-system/shared/genericerrors"
 )
 
 // --- mock repo ---
 
 type mockNotifRepo struct {
-	createFn       func(ctx context.Context, n *db.Notification) error
-	createBatchFn  func(ctx context.Context, ns []*db.Notification) error
-	getByIDFn      func(ctx context.Context, id uuid.UUID) (*db.Notification, error)
-	getByIDsFn     func(ctx context.Context, ids []uuid.UUID) ([]*db.Notification, error)
-	listFn         func(ctx context.Context, f db.ListFilter) ([]*db.Notification, int, *uuid.UUID, error)
-	updateStatusFn func(ctx context.Context, id uuid.UUID, status string) (*db.Notification, error)
+	createFn           func(ctx context.Context, n *db.Notification) error
+	createBatchFn      func(ctx context.Context, ns []*db.Notification) error
+	getByIDFn          func(ctx context.Context, id uuid.UUID) (*db.Notification, error)
+	getByIDsFn         func(ctx context.Context, ids []uuid.UUID) ([]*db.Notification, error)
+	listFn             func(ctx context.Context, f db.ListFilter) ([]*db.Notification, int, *uuid.UUID, error)
+	updateStatusFn     func(ctx context.Context, id uuid.UUID, status string) (*db.Notification, error)
 	findScheduledDueFn func(ctx context.Context) ([]*db.Notification, error)
 }
 
@@ -78,10 +79,10 @@ func (m *mockNotifRepo) FindScheduledDue(ctx context.Context) ([]*db.Notificatio
 // --- mock outbox repo ---
 
 type mockOutboxRepo struct {
-	saveFn            func(ctx context.Context, events ...db.OutboxEvent) error
-	getUnpublishedFn  func(ctx context.Context, limit int) ([]db.OutboxEvent, error)
-	markPublishedFn   func(ctx context.Context, ids []string, publishedAt time.Time) error
-	incrementRetryFn  func(ctx context.Context, ids []string) error
+	saveFn           func(ctx context.Context, events ...db.OutboxEvent) error
+	getUnpublishedFn func(ctx context.Context, limit int) ([]db.OutboxEvent, error)
+	markPublishedFn  func(ctx context.Context, ids []string, publishedAt time.Time) error
+	incrementRetryFn func(ctx context.Context, ids []string) error
 }
 
 func (m *mockOutboxRepo) Save(ctx context.Context, events ...db.OutboxEvent) error {

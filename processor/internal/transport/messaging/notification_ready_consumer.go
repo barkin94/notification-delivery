@@ -7,11 +7,12 @@ import (
 	"log/slog"
 	"sync"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/barkin94/notification-system/processor/internal/delivery"
 	"github.com/barkin94/notification-system/shared/events"
-	sharedotel "github.com/barkin94/notification-system/shared/otel"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 )
 
 func (c *NotificationReadyConsumer) processOne(msg natsmsg.Result[cloudevents.Event]) {

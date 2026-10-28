@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	apipub "github.com/barkin94/notification-system/api/public"
 	"github.com/barkin94/notification-system/deliveryscheduler/internal/config"
 	dbpostgres "github.com/barkin94/notification-system/deliveryscheduler/internal/db/postgres"
@@ -13,9 +15,8 @@ import (
 	dsmessaging "github.com/barkin94/notification-system/deliveryscheduler/internal/transport/messaging"
 	sharedbun "github.com/barkin94/notification-system/shared/bun"
 	sharedmessaging "github.com/barkin94/notification-system/shared/messaging"
-	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 )
 
 const notificationStream = "NOTIFICATIONS"

@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+
 	db "github.com/barkin94/notification-system/deliveryscheduler/internal/db"
 	"github.com/barkin94/notification-system/shared/events"
 	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 	sharedotel "github.com/barkin94/notification-system/shared/otel"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
 // CancelConsumer consumes NotificationScheduleCancelledEvent CloudEvents and removes the
