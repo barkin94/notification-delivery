@@ -3,10 +3,10 @@ package handler
 import (
 	"time"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	"github.com/barkin94/insider-notification/api/internal/domain/notification"
-	apipub "github.com/barkin94/insider-notification/api/public"
-	sharedhandler "github.com/barkin94/insider-notification/shared/handler"
+	"github.com/barkin94/notification-system/api/internal/db"
+	"github.com/barkin94/notification-system/api/internal/domain/notification"
+	apipub "github.com/barkin94/notification-system/api/public"
+	sharedhandler "github.com/barkin94/notification-system/shared/handler"
 )
 
 type createRequest struct {

@@ -7,10 +7,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	apipub "github.com/barkin94/insider-notification/api/public"
-	"github.com/barkin94/insider-notification/shared/txmanager"
-	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
+	"github.com/barkin94/notification-system/api/internal/db"
+	apipub "github.com/barkin94/notification-system/api/public"
+	"github.com/barkin94/notification-system/shared/txmanager"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 )
 
 func newNotification() *db.Notification {

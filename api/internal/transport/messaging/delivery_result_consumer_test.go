@@ -20,15 +20,15 @@ import (
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
 
-	repopostgres "github.com/barkin94/insider-notification/api/internal/db/postgres"
-	"github.com/barkin94/insider-notification/api/internal/service"
-	"github.com/barkin94/insider-notification/api/internal/transport/messaging"
-	apipub "github.com/barkin94/insider-notification/api/public"
+	repopostgres "github.com/barkin94/notification-system/api/internal/db/postgres"
+	"github.com/barkin94/notification-system/api/internal/service"
+	"github.com/barkin94/notification-system/api/internal/transport/messaging"
+	apipub "github.com/barkin94/notification-system/api/public"
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/barkin94/insider-notification/shared/events"
-	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	"github.com/barkin94/notification-system/shared/events"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
@@ -122,7 +122,7 @@ func makeCloudEventResult(data any) natsmsg.Result[cloudevents.Event] {
 func makeDeliveryResultEvent(notifID, status string, attempt int, httpCode int, errMsg string, latency int) cloudevents.Event {
 	ce := cloudevents.NewEvent()
 	ce.SetID(uuid.New().String())
-	ce.SetSource("insider-processor")
+	ce.SetSource("notification-system-processor")
 	ce.SetType(events.TypeNotificationDeliveryResult)
 	ce.SetTime(time.Now().UTC())
 	ce.SetData(cloudevents.ApplicationJSON, events.NotificationDeliveryResultData{

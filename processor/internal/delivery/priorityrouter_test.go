@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
-	"github.com/barkin94/insider-notification/processor/internal/delivery"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	apipub "github.com/barkin94/notification-system/api/public"
+	"github.com/barkin94/notification-system/processor/internal/delivery"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 )
 
 // result aliases the concrete type to keep test lines short.

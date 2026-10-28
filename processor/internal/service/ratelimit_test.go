@@ -14,7 +14,7 @@ import (
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/barkin94/insider-notification/processor/internal/service"
+	"github.com/barkin94/notification-system/processor/internal/service"
 )
 
 // redisAddr is set by TestMain when Docker is available; empty otherwise.

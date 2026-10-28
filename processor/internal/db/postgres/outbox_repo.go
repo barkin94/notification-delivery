@@ -1,8 +1,8 @@
 package postgres
 
 import (
-	"github.com/barkin94/insider-notification/processor/internal/db"
-	"github.com/barkin94/insider-notification/shared/messaging"
+	"github.com/barkin94/notification-system/processor/internal/db"
+	"github.com/barkin94/notification-system/shared/messaging"
 	"github.com/uptrace/bun"
 )
 

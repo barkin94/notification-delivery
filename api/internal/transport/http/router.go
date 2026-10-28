@@ -7,9 +7,9 @@ import (
 
 	"github.com/uptrace/bun"
 
-	_ "github.com/barkin94/insider-notification/api/docs"
-	"github.com/barkin94/insider-notification/api/internal/service"
-	sharedhandler "github.com/barkin94/insider-notification/shared/handler"
+	_ "github.com/barkin94/notification-system/api/docs"
+	"github.com/barkin94/notification-system/api/internal/service"
+	sharedhandler "github.com/barkin94/notification-system/shared/handler"
 )
 
 // Deps holds the dependencies required to build the HTTP router.

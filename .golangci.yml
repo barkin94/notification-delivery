@@ -27,4 +27,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/barkin/insider-notification
+        - github.com/barkin94/notification-system

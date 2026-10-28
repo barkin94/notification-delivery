@@ -6,9 +6,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
-	"github.com/barkin94/insider-notification/api/internal/domain/notification"
-	apipub "github.com/barkin94/insider-notification/api/public"
-	sharedbun "github.com/barkin94/insider-notification/shared/bun"
+	"github.com/barkin94/notification-system/api/internal/domain/notification"
+	apipub "github.com/barkin94/notification-system/api/public"
+	sharedbun "github.com/barkin94/notification-system/shared/bun"
 )
 
 type Notification struct {

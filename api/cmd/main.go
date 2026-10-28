@@ -1,4 +1,4 @@
-// @title           Insider Notification API
+// @title           Notification System API
 // @version         1.0
 // @description     Notification delivery service — create, list, and cancel notifications.
 // @host            localhost:8080
@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/barkin94/insider-notification/api/internal/app"
-	"github.com/barkin94/insider-notification/api/internal/config"
-	sharedlogger "github.com/barkin94/insider-notification/shared/logger"
-	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	"github.com/barkin94/notification-system/api/internal/app"
+	"github.com/barkin94/notification-system/api/internal/config"
+	sharedlogger "github.com/barkin94/notification-system/shared/logger"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 )
 
 func main() {

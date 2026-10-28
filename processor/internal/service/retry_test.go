@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/barkin94/insider-notification/processor/internal/service"
+	"github.com/barkin94/notification-system/processor/internal/service"
 )
 
 func TestRetryDelay_attempt2(t *testing.T) {

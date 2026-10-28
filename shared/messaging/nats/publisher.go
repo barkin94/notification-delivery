@@ -10,7 +10,7 @@ import (
 	natsio "github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 
-	messaging "github.com/barkin94/insider-notification/shared/messaging"
+	messaging "github.com/barkin94/notification-system/shared/messaging"
 )
 
 // NewPublisher constructs a BatchPublisher that sends JSON-encoded events to NATS

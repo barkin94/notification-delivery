@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	"github.com/barkin94/insider-notification/api/internal/domain/notification"
-	"github.com/barkin94/insider-notification/api/internal/service"
-	sharedhandler "github.com/barkin94/insider-notification/shared/handler"
+	"github.com/barkin94/notification-system/api/internal/db"
+	"github.com/barkin94/notification-system/api/internal/domain/notification"
+	"github.com/barkin94/notification-system/api/internal/service"
+	sharedhandler "github.com/barkin94/notification-system/shared/handler"
 )
 
 // --- handler constructors ---

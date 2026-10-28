@@ -10,12 +10,12 @@ import (
 
 	"github.com/google/uuid"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
-	"github.com/barkin94/insider-notification/processor/internal/delivery"
-	"github.com/barkin94/insider-notification/processor/internal/service"
-	processorpub "github.com/barkin94/insider-notification/processor/public"
-	"github.com/barkin94/insider-notification/shared/events"
-	"github.com/barkin94/insider-notification/shared/messaging"
+	apipub "github.com/barkin94/notification-system/api/public"
+	"github.com/barkin94/notification-system/processor/internal/delivery"
+	"github.com/barkin94/notification-system/processor/internal/service"
+	processorpub "github.com/barkin94/notification-system/processor/public"
+	"github.com/barkin94/notification-system/shared/events"
+	"github.com/barkin94/notification-system/shared/messaging"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 

@@ -1,4 +1,4 @@
-module github.com/barkin94/insider-notification/shared
+module github.com/barkin94/notification-system/shared
 
 go 1.25.0
 

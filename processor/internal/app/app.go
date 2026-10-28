@@ -9,17 +9,17 @@ import (
 
 	"github.com/go-redis/redis_rate/v10"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
-	"github.com/barkin94/insider-notification/processor/internal/config"
-	"github.com/barkin94/insider-notification/processor/internal/db/postgres"
-	"github.com/barkin94/insider-notification/processor/internal/delivery"
-	"github.com/barkin94/insider-notification/processor/internal/service"
-	"github.com/barkin94/insider-notification/processor/internal/transport/messaging"
-	"github.com/barkin94/insider-notification/shared/bun"
-	sharedmessaging "github.com/barkin94/insider-notification/shared/messaging"
-	"github.com/barkin94/insider-notification/shared/lock"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
-	sharedredis "github.com/barkin94/insider-notification/shared/redis"
+	apipub "github.com/barkin94/notification-system/api/public"
+	"github.com/barkin94/notification-system/processor/internal/config"
+	"github.com/barkin94/notification-system/processor/internal/db/postgres"
+	"github.com/barkin94/notification-system/processor/internal/delivery"
+	"github.com/barkin94/notification-system/processor/internal/service"
+	"github.com/barkin94/notification-system/processor/internal/transport/messaging"
+	"github.com/barkin94/notification-system/shared/bun"
+	sharedmessaging "github.com/barkin94/notification-system/shared/messaging"
+	"github.com/barkin94/notification-system/shared/lock"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
+	sharedredis "github.com/barkin94/notification-system/shared/redis"
 )
 
 const notificationStream = "NOTIFICATIONS"

@@ -1,12 +1,19 @@
-module github.com/barkin94/insider-notification/api
+module github.com/barkin94/notification-system/api
 
 go 1.25.0
 
+replace (
+	github.com/barkin94/notification-system/api/public => ./public
+	github.com/barkin94/notification-system/deliveryscheduler/public => ../deliveryscheduler/public
+	github.com/barkin94/notification-system/processor/public => ../processor/public
+	github.com/barkin94/notification-system/shared => ../shared
+)
+
 require (
-	github.com/barkin94/insider-notification/api/public v0.5.0
-	github.com/barkin94/insider-notification/deliveryscheduler/public v0.3.0
-	github.com/barkin94/insider-notification/processor/public v0.3.0
-	github.com/barkin94/insider-notification/shared v0.5.0
+	github.com/barkin94/notification-system/api/public v0.5.0
+	github.com/barkin94/notification-system/deliveryscheduler/public v0.3.0
+	github.com/barkin94/notification-system/processor/public v0.3.0
+	github.com/barkin94/notification-system/shared v0.5.0
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1

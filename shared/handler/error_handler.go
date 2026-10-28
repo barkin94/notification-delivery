@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	sharedErrors "github.com/barkin94/insider-notification/shared/genericerrors"
-	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	sharedErrors "github.com/barkin94/notification-system/shared/genericerrors"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 )
 
 type ErrorBody struct {

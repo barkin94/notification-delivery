@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
+	apipub "github.com/barkin94/notification-system/api/public"
 )
 
 // E.164: + followed by 7–15 digits, leading digit non-zero.

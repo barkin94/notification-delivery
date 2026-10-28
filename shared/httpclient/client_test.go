@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/barkin94/insider-notification/shared/httpclient"
+	"github.com/barkin94/notification-system/shared/httpclient"
 )
 
 func TestNew_defaultTimeout(t *testing.T) {

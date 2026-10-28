@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
+	"github.com/barkin94/notification-system/api/internal/db"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 )
 
 type bunNotificationRepo struct {

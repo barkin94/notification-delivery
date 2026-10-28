@@ -1,6 +1,6 @@
 package notification
 
-import sharedErrors "github.com/barkin94/insider-notification/shared/genericerrors"
+import sharedErrors "github.com/barkin94/notification-system/shared/genericerrors"
 
 // DomainError is an alias so callers reference notification.DomainError
 // while the type itself lives in shared/errors.

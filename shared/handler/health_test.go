@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/barkin94/insider-notification/shared/handler"
+	"github.com/barkin94/notification-system/shared/handler"
 )
 
 func TestLiveness_200(t *testing.T) {

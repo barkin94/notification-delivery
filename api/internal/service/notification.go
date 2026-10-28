@@ -7,13 +7,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	"github.com/barkin94/insider-notification/api/internal/domain/notification"
-	apipub "github.com/barkin94/insider-notification/api/public"
-	"github.com/barkin94/insider-notification/shared/events"
-	"github.com/barkin94/insider-notification/shared/genericerrors"
-	"github.com/barkin94/insider-notification/shared/messaging"
-	"github.com/barkin94/insider-notification/shared/txmanager"
+	"github.com/barkin94/notification-system/api/internal/db"
+	"github.com/barkin94/notification-system/api/internal/domain/notification"
+	apipub "github.com/barkin94/notification-system/api/public"
+	"github.com/barkin94/notification-system/shared/events"
+	"github.com/barkin94/notification-system/shared/genericerrors"
+	"github.com/barkin94/notification-system/shared/messaging"
+	"github.com/barkin94/notification-system/shared/txmanager"
 )
 
 // BatchResult holds the outcome of one item in a batch create operation.

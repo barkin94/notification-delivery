@@ -9,12 +9,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	"github.com/barkin94/insider-notification/api/internal/domain/notification"
-	"github.com/barkin94/insider-notification/api/internal/service"
-	apipub "github.com/barkin94/insider-notification/api/public"
-	sharedErrors "github.com/barkin94/insider-notification/shared/genericerrors"
-	"github.com/barkin94/insider-notification/shared/events"
+	"github.com/barkin94/notification-system/api/internal/db"
+	"github.com/barkin94/notification-system/api/internal/domain/notification"
+	"github.com/barkin94/notification-system/api/internal/service"
+	apipub "github.com/barkin94/notification-system/api/public"
+	sharedErrors "github.com/barkin94/notification-system/shared/genericerrors"
+	"github.com/barkin94/notification-system/shared/events"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 

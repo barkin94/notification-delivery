@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	shared "github.com/barkin94/insider-notification/shared/config"
+	shared "github.com/barkin94/notification-system/shared/config"
 )
 
 type Config struct {

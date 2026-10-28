@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/barkin94/insider-notification/processor/internal/service"
-	"github.com/barkin94/insider-notification/shared/events"
-	"github.com/barkin94/insider-notification/shared/lock"
-	"github.com/barkin94/insider-notification/shared/messaging"
+	"github.com/barkin94/notification-system/processor/internal/service"
+	"github.com/barkin94/notification-system/shared/events"
+	"github.com/barkin94/notification-system/shared/lock"
+	"github.com/barkin94/notification-system/shared/messaging"
 )
 
 // ErrRetryAfter is returned by Run when the message should be redelivered via

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/barkin94/insider-notification/shared/httpclient"
+	"github.com/barkin94/notification-system/shared/httpclient"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

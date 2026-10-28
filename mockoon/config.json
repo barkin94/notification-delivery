@@ -1,7 +1,7 @@
 {
   "uuid": "27bb82c3-325a-4449-9505-caa40d88f0b1",
   "lastMigration": 33,
-  "name": "Insider notif",
+  "name": "Notification System",
   "endpointPrefix": "",
   "latency": 0,
   "port": 3001,

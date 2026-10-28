@@ -7,12 +7,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/barkin94/insider-notification/api/internal/db"
-	"github.com/barkin94/insider-notification/api/internal/service"
-	"github.com/barkin94/insider-notification/shared/events"
-	sharedmessaging "github.com/barkin94/insider-notification/shared/messaging"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
-	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	"github.com/barkin94/notification-system/api/internal/db"
+	"github.com/barkin94/notification-system/api/internal/service"
+	"github.com/barkin94/notification-system/shared/events"
+	sharedmessaging "github.com/barkin94/notification-system/shared/messaging"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 

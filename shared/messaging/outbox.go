@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
-	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 )
 
 // OutboxEvent represents an event stored in the outbox table

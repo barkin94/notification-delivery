@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	db "github.com/barkin94/insider-notification/deliveryscheduler/internal/db"
-	"github.com/barkin94/insider-notification/shared/events"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
-	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	db "github.com/barkin94/notification-system/deliveryscheduler/internal/db"
+	"github.com/barkin94/notification-system/shared/events"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 

@@ -1,17 +1,24 @@
-module github.com/barkin94/insider-notification/processor
+module github.com/barkin94/notification-system/processor
 
 go 1.25.0
 
+replace (
+	github.com/barkin94/notification-system/api/public => ../api/public
+	github.com/barkin94/notification-system/processor/public => ./public
+	github.com/barkin94/notification-system/shared => ../shared
+)
+
 require (
-	github.com/barkin94/insider-notification/api/public v0.5.0
-	github.com/barkin94/insider-notification/processor/public v0.3.0
-	github.com/barkin94/insider-notification/shared v0.5.0
+	github.com/barkin94/notification-system/api/public v0.5.0
+	github.com/barkin94/notification-system/processor/public v0.3.0
+	github.com/barkin94/notification-system/shared v0.5.0
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.20.1
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/redis v0.42.0
+	github.com/uptrace/bun v1.3.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
 	go.opentelemetry.io/otel/trace v1.44.0
@@ -82,7 +89,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun v1.3.0 // indirect
 	github.com/uptrace/bun/dialect/pgdialect v1.3.0 // indirect
 	github.com/uptrace/bun/driver/pgdriver v1.3.0 // indirect
 	github.com/uptrace/bun/extra/bunotel v1.2.18 // indirect

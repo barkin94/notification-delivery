@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/barkin94/insider-notification/shared/otel"
+	"github.com/barkin94/notification-system/shared/otel"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 

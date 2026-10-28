@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
-	apipub "github.com/barkin94/insider-notification/api/public"
+	apipub "github.com/barkin94/notification-system/api/public"
 )
 
 // Metrics records delivery outcomes for the processor service.

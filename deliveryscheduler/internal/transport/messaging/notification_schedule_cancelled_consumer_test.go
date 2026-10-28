@@ -9,10 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 
-	db "github.com/barkin94/insider-notification/deliveryscheduler/internal/db"
-	"github.com/barkin94/insider-notification/deliveryscheduler/internal/transport/messaging"
-	"github.com/barkin94/insider-notification/shared/events"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	db "github.com/barkin94/notification-system/deliveryscheduler/internal/db"
+	"github.com/barkin94/notification-system/deliveryscheduler/internal/transport/messaging"
+	"github.com/barkin94/notification-system/shared/events"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
@@ -38,7 +38,7 @@ func (m *cancelMockRepo) DeleteByNotificationID(_ context.Context, id string) er
 func makeCancelResult(notifID string) natsmsg.Result[cloudevents.Event] {
 	ce := cloudevents.NewEvent()
 	ce.SetID(uuid.New().String())
-	ce.SetSource("insider-notification-api")
+	ce.SetSource("notification-system-api")
 	ce.SetType(events.TypeNotificationScheduleCancelled)
 	ce.SetTime(time.Now().UTC())
 	ce.SetData(cloudevents.ApplicationJSON, events.NotificationScheduleCancelledData{

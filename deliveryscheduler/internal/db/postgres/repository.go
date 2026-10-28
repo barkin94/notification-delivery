@@ -7,8 +7,8 @@ import (
 
 	"github.com/uptrace/bun"
 
-	"github.com/barkin94/insider-notification/deliveryscheduler/internal/db"
-	"github.com/barkin94/insider-notification/shared/txmanager/buntx"
+	"github.com/barkin94/notification-system/deliveryscheduler/internal/db"
+	"github.com/barkin94/notification-system/shared/txmanager/buntx"
 )
 
 type pgScheduledNotificationRepo struct {

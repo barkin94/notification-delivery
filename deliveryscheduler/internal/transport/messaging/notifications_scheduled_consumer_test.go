@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 
-	"github.com/barkin94/insider-notification/deliveryscheduler/internal/db"
-	"github.com/barkin94/insider-notification/shared/events"
-	natsmsg "github.com/barkin94/insider-notification/shared/messaging/nats"
+	"github.com/barkin94/notification-system/deliveryscheduler/internal/db"
+	"github.com/barkin94/notification-system/shared/events"
+	natsmsg "github.com/barkin94/notification-system/shared/messaging/nats"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
@@ -48,7 +48,7 @@ func (m *MockRepository) DeleteByNotificationID(_ context.Context, _ string) err
 func makeCloudEventResult(data any) natsmsg.Result[cloudevents.Event] {
 	ce := cloudevents.NewEvent()
 	ce.SetID(uuid.New().String())
-	ce.SetSource("insider-notification-api")
+	ce.SetSource("notification-system-api")
 	ce.SetTime(time.Now().UTC())
 	payload, _ := json.Marshal(data)
 	ce.SetData(cloudevents.ApplicationJSON, payload)

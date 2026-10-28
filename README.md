@@ -1,4 +1,4 @@
-# Insider Notification Service
+# Notification System
 
 A notification delivery system built in Go. The API Service accepts notification requests, publishes them to NATS JetStream by priority, and the Processor Service picks them up for delivery and publishes results back to NATS JetStream. Retries use NATS JetStream's native NakWithDelay — no separate retry service is needed.
 

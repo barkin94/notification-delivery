@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/barkin94/insider-notification/processor/internal/app"
-	"github.com/barkin94/insider-notification/processor/internal/config"
-	sharedlogger "github.com/barkin94/insider-notification/shared/logger"
-	sharedotel "github.com/barkin94/insider-notification/shared/otel"
+	"github.com/barkin94/notification-system/processor/internal/app"
+	"github.com/barkin94/notification-system/processor/internal/config"
+	sharedlogger "github.com/barkin94/notification-system/shared/logger"
+	sharedotel "github.com/barkin94/notification-system/shared/otel"
 )
 
 func main() {

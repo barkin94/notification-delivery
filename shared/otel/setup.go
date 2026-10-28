@@ -18,7 +18,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 
-	sharedlogger "github.com/barkin94/insider-notification/shared/logger"
+	sharedlogger "github.com/barkin94/notification-system/shared/logger"
 )
 
 // Shutdown cleanly flushes and stops the OTel SDK.
